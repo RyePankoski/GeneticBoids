@@ -2,6 +2,10 @@ This is my genetic boids project. Its boids with genes mixed in. All boids are c
 Then some random genetic drift is applied to the color, with a bias towards the color they already are in, in the form of a genetic marker. If their color drifts too far, their genetic marker changes. Boids only flock with boids of the same
 genetic marker. They get bigger as they age, and they die if the get separated from the flock. It creates some very beautiful boids
 
+This boid simulation contains some pretty cool optimizations. You will notice the area is split into sectors. Boids only check for nearby boids by looking at what boids are in its sector, and adjacent sectors.
+
+I have managed to get 750 boids to fly, with an average operations per frame of about 20k. Compared to a nested for loop, which would be about 562k operations per frame, this is pretty decent!
+
 They like to spiral in large numbers, a problem I've tried hard to fix. 
 ![image](https://github.com/user-attachments/assets/9c78fe88-e541-49c6-b347-feb5fbba5e3e)
 
