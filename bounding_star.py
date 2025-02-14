@@ -130,26 +130,41 @@ class BoundingStar:
             return None
 
     def check_interactions(self, star, nearby_stars):
+        saw_any_stars = False
+        saw_enemy_stars = False
         align_distance_sq = self.align_distance * self.align_distance
         repel_distance_sq = self.repel_distance * self.repel_distance
 
-        saw_any_stars = False
-        saw_enemy_stars = False
+        if not nearby_stars:
+            return
 
-        for other_star in nearby_stars:
-            if other_star is star:
-                continue
+        stars_to_check = nearby_stars - {star}
+        if not stars_to_check:
+            return
+
+        length = len(stars_to_check)
+        max_attempts = max(1, int(length / 2))
+        attempts = 0
+        threshold = align_distance_sq / 2
+
+        while attempts < max_attempts and stars_to_check:
+            other_star = random.choice(list(stars_to_check))
 
             dx = other_star.pos_x - star.pos_x
             dy = other_star.pos_y - star.pos_y
             distance_sq = dx * dx + dy * dy
 
-            self.total_interactions += 1
             genetically_compatible = (star.gene_preference == other_star.gene_preference)
+            attempts += 1
+            self.total_interactions += 1
 
             if genetically_compatible:
-                saw_any_stars = True
+                # Only check distance threshold for friendly boids
+                if distance_sq > threshold:
+                    stars_to_check.remove(other_star)
+                    continue
 
+                saw_any_stars = True
                 if distance_sq < repel_distance_sq:
                     adjust_vector_farther(star, other_star, self.adjust_rate)
                 elif distance_sq < align_distance_sq:
@@ -159,12 +174,13 @@ class BoundingStar:
                 repel_diff_genes(star, other_star, self.repel_rate)
 
         if saw_enemy_stars:
+            self.total_interactions += 1
             saw_cohesion_stars = apply_cohesion(star, nearby_stars, .008)
         else:
+            self.total_interactions += 1
             saw_cohesion_stars = apply_cohesion(star, nearby_stars, .004)
 
         saw_any_stars = saw_any_stars or saw_cohesion_stars
-
         if saw_any_stars:
             star.time_alone = 0
         else:
@@ -263,7 +279,7 @@ class BoundingStar:
         new_star.gene_preference = preferred_gene
 
         if new_star.gene_preference == "dark_star":
-            new_star.velocity = self.speed/5
+            new_star.velocity = self.speed / 5
 
         self.stars.append(new_star)
         self.update_star_sector(new_star)
@@ -280,8 +296,8 @@ class BoundingStar:
     def handle_lifespan_genes(self, new_gene):
 
         # Constants for better readability and maintenance
-        DUNEDAIN_CHANCE = 1 / 2000 # 0.0004 probability
-        DARK_STAR_CHANCE = 1 / 5000 # 0.0002 probability
+        DUNEDAIN_CHANCE = 1 / 2000  # 0.0004 probability
+        DARK_STAR_CHANCE = 1 / 5000  # 0.0002 probability
 
         # Regular lifespan ranges
         NORMAL_MIN_LIFE = 0
