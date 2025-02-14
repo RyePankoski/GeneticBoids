@@ -63,9 +63,8 @@ def adjust_vector_farther(star, near_star, adjust_rate):
 
 
 def handle_boundaries(star):
-    """Handle star interaction with screen boundaries"""
     # Edge avoidance
-    edge_threshold = 50
+    edge_threshold = 100
     steer_strength = 0.05
 
     # Basic edge avoidance

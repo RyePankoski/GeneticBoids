@@ -14,27 +14,25 @@ class BoundingStar:
         self.stars = []
         self.stars_total = 3
 
-        scalar = 5
+        # 3-5 is a good range for the scalar
 
-        random_speed = 1 * scalar
+        scalar = 2
+
+        speed = 1 * scalar
         self.adjust_rate = .01
         self.repel_rate = 0.007
 
-        self.repel_distance = 30
-        self.align_distance = 80
+        self.repel_distance = 6 * scalar
+        self.align_distance = 16 * scalar
 
-        # self.center_attraction_strength = 0.01
-        self.center_attraction_strength = .005
-        self.vector_alignment_strength = .03
+        BASE_STARS = 1000
+        self.max_stars = int(BASE_STARS / scalar)
+        print(f"{self.max_stars}")
 
-        self.max_stars = 200
-
-        self.red_vector = {'dx': 0, 'dy': 0}
-        self.blue_vector = {'dx': 0, 'dy': 0}
-        self.green_vector = {'dx': 0, 'dy': 0}
+        self.sector_size = 8 * scalar
+        print(f"{self.sector_size}")
 
         self.global_average_color = None
-        self.global_average_vector = None
         self.global_green = 0
         self.global_red = 0
         self.global_blue = 0
@@ -48,7 +46,6 @@ class BoundingStar:
         self.total_grays = 0
         self.total_operations = 0
 
-        self.sector_size = 40  # Based on our previous discussion
         self.num_cols = math.ceil(WINDOW_WIDTH / self.sector_size)
         self.num_rows = math.ceil(WINDOW_HEIGHT / self.sector_size)
         self.grid_cells = [[set() for _ in range(self.num_cols)] for _ in range(self.num_rows)]
@@ -57,16 +54,17 @@ class BoundingStar:
         random_dy = random.uniform(-1, 1)
 
         magnitude = math.sqrt(random_dx * random_dx + random_dy * random_dy)
+
         if magnitude != 0:
             random_dx /= magnitude
             random_dy /= magnitude
 
-        self.red_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, random_speed, (255, 0, 0), 100,
+        self.red_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, speed, (255, 0, 0), 100,
                              prefered_gene='r', solitude_tolerance=500)
-        self.green_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, random_speed, (0, 255, 0),
+        self.green_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, speed, (0, 255, 0),
                                100,
                                prefered_gene='g', solitude_tolerance=500)
-        self.blue_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, random_speed, (0, 0, 255), 100,
+        self.blue_star = Star(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, random_dx, random_dy, speed, (0, 0, 255), 100,
                               prefered_gene='b', solitude_tolerance=500)
         self.stars.append(self.red_star)
         self.stars.append(self.green_star)
@@ -236,7 +234,7 @@ class BoundingStar:
             return None
 
     def _handle_operations_overload(self):
-        if self.total_operations > 30000:
+        if self.total_operations > 35000:
             num_to_remove = max(1, int(self.stars_total * 0.1))
             for _ in range(num_to_remove):
                 if len(self.stars) > 50:  # Keep a minimum population
@@ -284,13 +282,13 @@ class BoundingStar:
                 (star_gene == "b" and self.total_blues > self.max_stars / 1.5):
             return
 
-        if star_gene == "r" and self.total_reds < 20:
+        if star_gene == "r" and self.total_reds < self.max_stars/5:
             for _ in range(4):  # More readable than repeated calls
                 self.add_star(star)
-        elif star_gene == "g" and self.total_greens < 20:
+        elif star_gene == "g" and self.total_greens < self.max_stars/5:
             for _ in range(4):
                 self.add_star(star)
-        elif star_gene == "b" and self.total_blues < 20:
+        elif star_gene == "b" and self.total_blues < self.max_stars/5:
             for _ in range(4):
                 self.add_star(star)
         else:
@@ -401,11 +399,11 @@ class BoundingStar:
         if parent_gene == "b":
             b += gene_bias
 
-        if self.total_reds < 20 and parent_star.gene_preference == "r":
+        if self.total_reds < self.max_stars/5 and parent_star.gene_preference == "r":
             r += survival_pressure
-        elif self.total_greens < 20 and parent_star.gene_preference == "g":
+        elif self.total_greens < self.max_stars/5 and parent_star.gene_preference == "g":
             g += survival_pressure
-        elif self.total_blues < 20 and parent_star.gene_preference == "b":
+        elif self.total_blues < self.max_stars/5 and parent_star.gene_preference == "b":
             b += survival_pressure
 
         r = int(max(0, min(255, r + random.uniform(-color_drift_strength, color_drift_strength))))
