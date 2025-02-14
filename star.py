@@ -17,5 +17,6 @@ class Star:
         self.health_points = 200
         self.solitude_tolerance = solitude_tolerance
         self.time_alone = 0
+        self.normalize_needed = False
 
 
