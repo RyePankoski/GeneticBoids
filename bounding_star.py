@@ -15,7 +15,7 @@ class BoundingStar:
         self.stars_total = 3
 
         # 3-5 is a good range for the scalar
-        scalar = 1.5
+        scalar = 2
 
         self.speed = 1 * scalar
         self.adjust_rate = .008
@@ -187,20 +187,16 @@ class BoundingStar:
             star.time_alone += 1
 
     def get_adjacent_sectors(self, row, col):
-        adjacent_stars = set()
-
+        # Pre-calculate bounds once
         start_row = max(0, row - 1)
         end_row = min(self.num_rows, row + 3)
         start_col = max(0, col - 1)
         end_col = min(self.num_cols, col + 3)
 
-        # Use direct slice of grid cells
-        for r in range(start_row, end_row):
-            for c in range(start_col, end_col):
-                if self.grid_cells[r][c]:  # Only update if the cell has stars
-                    adjacent_stars.update(self.grid_cells[r][c])
-
-        return adjacent_stars
+        # Use a list comprehension to flatten the relevant cells
+        return {star for r in range(start_row, end_row)
+                for c in range(start_col, end_col)
+                for star in self.grid_cells[r][c]}
 
     def update_star_sector(self, star, old_pos=None):
         if old_pos is not None:
@@ -535,7 +531,7 @@ class BoundingStar:
         self.stars_total = len(self.stars)
 
     def _handle_operations_overload(self):
-        if self.total_interactions > 35000:
+        if self.total_interactions > 30000:
             self.overload_events += 1
 
             if self.overload_events >= 3:

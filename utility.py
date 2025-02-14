@@ -3,23 +3,28 @@ from constants import *
 
 
 def normalize_vector(dx, dy):
-    magnitude = math.hypot(dx, dy)
+    # Use sqrt(x²+y²) directly instead of hypot if maximum precision isn't needed
+    magnitude = (dx * dx + dy * dy) ** 0.5
     if magnitude:
-        return dx / magnitude, dy / magnitude
+        inv_mag = 1.0 / magnitude  # Calculate inverse once
+        return dx * inv_mag, dy * inv_mag
     return 0, 0
 
 
 def adjust_vector_closer(star, near_star, adjust_rate):
-    current_speed = math.sqrt(star.dx * star.dx + star.dy * star.dy)
+    # Cache square root calculation
+    current_speed = (star.dx * star.dx + star.dy * star.dy) ** 0.5
 
-    # Calculate direction adjustment
+    # Combine calculations to reduce operations
     new_dx = star.dx + (near_star.dx - star.dx) * adjust_rate
     new_dy = star.dy + (near_star.dy - star.dy) * adjust_rate
 
-    # Normalize and restore original speed
-    normalized_dx, normalized_dy = normalize_vector(new_dx, new_dy)
-    star.dx = normalized_dx * current_speed
-    star.dy = normalized_dy * current_speed
+    # Use the optimized normalize_vector function
+    magnitude = (new_dx * new_dx + new_dy * new_dy) ** 0.5
+    if magnitude:
+        inv_mag = current_speed / magnitude
+        star.dx = new_dx * inv_mag
+        star.dy = new_dy * inv_mag
 
 
 def repel_diff_genes(star, near_star, repel_rate):
@@ -66,111 +71,113 @@ def adjust_vector_farther(star, near_star, adjust_rate):
 def handle_boundaries(star):
     edge_threshold = 100
     steer_strength = 0.05
-
-    # Basic edge avoidance
-    if star.pos_x < edge_threshold:
-        star.dx += steer_strength
-    elif star.pos_x > WINDOW_WIDTH - edge_threshold:
-        star.dx -= steer_strength
-
-    if star.pos_y < edge_threshold:
-        star.dy += steer_strength
-    elif star.pos_y > WINDOW_HEIGHT - edge_threshold:
-        star.dy -= steer_strength
-
-    # Corner avoidance: only compute distance if the star is near a corner.
     corner_margin = 400
     max_corner_force = 0.4
 
-    # Top-left corner
-    if star.pos_x < corner_margin and star.pos_y < corner_margin:
-        dist = math.hypot(star.pos_x, star.pos_y)
+    # Cache position values
+    pos_x, pos_y = star.pos_x, star.pos_y
+
+    # Basic edge avoidance - use early returns to avoid unnecessary checks
+    if pos_x < edge_threshold:
+        star.dx += steer_strength
+    elif pos_x > WINDOW_WIDTH - edge_threshold:
+        star.dx -= steer_strength
+
+    if pos_y < edge_threshold:
+        star.dy += steer_strength
+    elif pos_y > WINDOW_HEIGHT - edge_threshold:
+        star.dy -= steer_strength
+
+    # Optimize corner checks by combining conditions
+    is_left = pos_x < corner_margin
+    is_right = pos_x > WINDOW_WIDTH - corner_margin
+    is_top = pos_y < corner_margin
+    is_bottom = pos_y > WINDOW_HEIGHT - corner_margin
+
+    if (is_left or is_right) and (is_top or is_bottom):
+        # Calculate corner distances only when necessary
+        if is_left and is_top:
+            dist = (pos_x * pos_x + pos_y * pos_y) ** 0.5
+        elif is_right and is_top:
+            dx = WINDOW_WIDTH - pos_x
+            dist = (dx * dx + pos_y * pos_y) ** 0.5
+        elif is_left and is_bottom:
+            dy = WINDOW_HEIGHT - pos_y
+            dist = (pos_x * pos_x + dy * dy) ** 0.5
+        else:  # right and bottom
+            dx = WINDOW_WIDTH - pos_x
+            dy = WINDOW_HEIGHT - pos_y
+            dist = (dx * dx + dy * dy) ** 0.5
+
         if dist < corner_margin:
             force = max_corner_force * (1 - dist / corner_margin)
-            star.dx += force
-            star.dy += force
+            if is_left:
+                star.dx += force
+            else:
+                star.dx -= force
+            if is_top:
+                star.dy += force
+            else:
+                star.dy -= force
 
-    # Top-right corner
-    elif star.pos_x > WINDOW_WIDTH - corner_margin and star.pos_y < corner_margin:
-        dist = math.hypot(WINDOW_WIDTH - star.pos_x, star.pos_y)
-        if dist < corner_margin:
-            force = max_corner_force * (1 - dist / corner_margin)
-            star.dx -= force
-            star.dy += force
-
-    # Bottom-left corner
-    elif star.pos_x < corner_margin and star.pos_y > WINDOW_HEIGHT - corner_margin:
-        dist = math.hypot(star.pos_x, WINDOW_HEIGHT - star.pos_y)
-        if dist < corner_margin:
-            force = max_corner_force * (1 - dist / corner_margin)
-            star.dx += force
-            star.dy -= force
-
-    # Bottom-right corner
-    elif star.pos_x > WINDOW_WIDTH - corner_margin and star.pos_y > WINDOW_HEIGHT - corner_margin:
-        dist = math.hypot(WINDOW_WIDTH - star.pos_x, WINDOW_HEIGHT - star.pos_y)
-        if dist < corner_margin:
-            force = max_corner_force * (1 - dist / corner_margin)
-            star.dx -= force
-            star.dy -= force
-
-    # Normalize final velocity
-    mag = math.hypot(star.dx, star.dy)
-    if mag:
-        star.dx /= mag
-        star.dy /= mag
+    # Normalize only when necessary
+    dx, dy = star.dx, star.dy
+    mag_sq = dx * dx + dy * dy
+    if mag_sq > 1.0:  # Only normalize if magnitude > 1
+        mag = mag_sq ** 0.5
+        star.dx = dx / mag
+        star.dy = dy / mag
 
 
 def apply_cohesion(star, nearby_stars, mod_cohesion_strength):
-    cohesion_distance = 100
-    cohesion_distance_sq = cohesion_distance * cohesion_distance
-    cohesion_strength = mod_cohesion_strength
+    cohesion_distance_sq = 10000  # Pre-compute 100²
 
-    center_x = 0
-    center_y = 0
-    num_neighbors = 0
-
-    # Cache star's attributes for faster access
-    sx = star.pos_x
-    sy = star.pos_y
+    # Cache star's attributes
+    sx, sy = star.pos_x, star.pos_y
     gene = star.gene_preference
+
+    # Pre-allocate sums instead of using center coordinates
+    sum_x = 0
+    sum_y = 0
+    num_neighbors = 0
 
     for other_star in nearby_stars:
         if other_star is star:
             continue
 
+        if other_star.gene_preference != gene:
+            continue
+
         dx = other_star.pos_x - sx
         dy = other_star.pos_y - sy
 
-        # Use the precomputed squared distance
-        if dx * dx + dy * dy > cohesion_distance_sq:
-            continue
-
-        if gene == other_star.gene_preference:
-            center_x += other_star.pos_x
-            center_y += other_star.pos_y
+        if dx * dx + dy * dy <= cohesion_distance_sq:
+            sum_x += other_star.pos_x
+            sum_y += other_star.pos_y
             num_neighbors += 1
 
     if num_neighbors:
-        center_x /= num_neighbors
-        center_y /= num_neighbors
+        inv_num = 1.0 / num_neighbors
+        center_x = sum_x * inv_num
+        center_y = sum_y * inv_num
 
-        # Direction to the center of mass
         to_center_x = center_x - sx
         to_center_y = center_y - sy
-        distance = math.hypot(to_center_x, to_center_y)
-        if distance:
-            to_center_x /= distance
-            to_center_y /= distance
 
-            # Apply cohesion force
-            star.dx += to_center_x * cohesion_strength
-            star.dy += to_center_y * cohesion_strength
+        # Combine normalization with force application
+        dist_sq = to_center_x * to_center_x + to_center_y * to_center_y
+        if dist_sq > 0:
+            dist = dist_sq ** 0.5
+            force = mod_cohesion_strength / dist
+            star.dx += to_center_x * force
+            star.dy += to_center_y * force
 
-            # Normalize final velocity
-            mag = math.hypot(star.dx, star.dy)
-            if mag:
-                star.dx /= mag
-                star.dy /= mag
+            # Only normalize if necessary
+            dx, dy = star.dx, star.dy
+            mag_sq = dx * dx + dy * dy
+            if mag_sq > 1.0:
+                mag = mag_sq ** 0.5
+                star.dx = dx / mag
+                star.dy = dy / mag
 
     return num_neighbors > 0
