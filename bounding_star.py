@@ -15,7 +15,7 @@ class BoundingStar:
         self.stars_total = 3
 
         # 3-5 is a good range for the scalar
-        scalar = 2
+        scalar = 1.5
 
         self.speed = 1 * scalar
         self.adjust_rate = .008
@@ -43,7 +43,7 @@ class BoundingStar:
         self.total_blues = 0
         self.total_greens = 0
         self.total_grays = 0
-        self.total_operations = 0
+        self.total_interactions = 0
         self.overload_events = 0
 
         self.num_cols = math.ceil(WINDOW_WIDTH / self.sector_size)
@@ -71,7 +71,7 @@ class BoundingStar:
 
     def update(self):
         self.recalculate_totals()
-        self.total_operations = 0
+        self.total_interactions = 0
 
         stars_to_remove = []
         stars_who_died_alone = []
@@ -144,7 +144,7 @@ class BoundingStar:
             dy = other_star.pos_y - star.pos_y
             distance_sq = dx * dx + dy * dy
 
-            self.total_operations += 1
+            self.total_interactions += 1
             genetically_compatible = (star.gene_preference == other_star.gene_preference)
 
             if genetically_compatible:
@@ -457,7 +457,7 @@ class BoundingStar:
         line_spacing = 30  # Space between lines
 
         # Draw total operations
-        ops_text = f"Operations: {self.total_operations}"
+        ops_text = f"Boid Interactions: {self.total_interactions}"
         ops_surface = font.render(ops_text, True, (255, 255, 255))
         self.screen.blit(ops_surface, (x_position, y_offset))
 
@@ -519,7 +519,7 @@ class BoundingStar:
         self.stars_total = len(self.stars)
 
     def _handle_operations_overload(self):
-        if self.total_operations > 35000:
+        if self.total_interactions > 35000:
             self.overload_events += 1
 
             if self.overload_events >= 3:
