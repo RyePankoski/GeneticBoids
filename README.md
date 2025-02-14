@@ -4,7 +4,9 @@ genetic marker. They get bigger as they age, and they die if the get separated f
 
 This boid simulation contains some pretty cool optimizations. You will notice the area is split into sectors. Boids only check for nearby boids by looking at what boids are in its sector, and adjacent sectors.
 
-I have managed to get 750 boids to fly, with an average operations per frame of about 20k. Compared to a nested for loop, which would be about 562k operations per frame, this is pretty decent!
+This is 1,000 boids! And I managed to keep the operations around or under 30k! Given that 1000 boids in a nested loop would be 1,000,000 operations, this is amazing!
+![image](https://github.com/user-attachments/assets/4b3b5ad5-0230-480a-82d9-faa36bb0fde0)
+
 
 They like to spiral in large numbers, a problem I've tried hard to fix. 
 ![image](https://github.com/user-attachments/assets/9c78fe88-e541-49c6-b347-feb5fbba5e3e)
