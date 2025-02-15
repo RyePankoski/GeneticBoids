@@ -1,11 +1,11 @@
 import pygame
-from constants import *
 import random
-import math
 from pygame import mixer
 from star import Star
 from utility import *
-
+import numpy as np
+from scipy.spatial import KDTree
+import matplotlib
 
 class BoundingStar:
     def __init__(self, screen):
@@ -15,7 +15,7 @@ class BoundingStar:
         self.stars_total = 3
 
         # 3-5 is a good range for the scalar
-        scalar = 2
+        scalar = 1.8
 
         self.speed = 1 * scalar
         self.adjust_rate = .008
@@ -45,6 +45,13 @@ class BoundingStar:
         self.total_grays = 0
         self.total_interactions = 0
         self.overload_events = 0
+        self.benchmark_data = []
+        self.frame_count = 0
+
+        fov = 190
+        self.fov_threshold = math.cos(fov * math.pi / 360)
+        self.align_distance_sq = self.align_distance * self.align_distance
+        self.repel_distance_sq = self.repel_distance * self.repel_distance
 
         self.num_cols = math.ceil(WINDOW_WIDTH / self.sector_size)
         self.num_rows = math.ceil(WINDOW_HEIGHT / self.sector_size)
@@ -96,8 +103,10 @@ class BoundingStar:
 
         self._handle_operations_overload()
 
-    def _update_star_position(self, star):
+        if self.frame_count % 30 == 0:
+            self.benchmark_data.append((self.stars_total, self.total_interactions))
 
+    def _update_star_position(self, star):
         vec = pygame.math.Vector2(star.dx, star.dy)
         if vec.length_squared() != 0:
             vec = vec.normalize()
@@ -132,8 +141,6 @@ class BoundingStar:
     def check_interactions(self, star, nearby_stars):
         saw_any_stars = False
         saw_enemy_stars = False
-        align_distance_sq = self.align_distance * self.align_distance
-        repel_distance_sq = self.repel_distance * self.repel_distance
 
         if not nearby_stars:
             return
@@ -143,9 +150,10 @@ class BoundingStar:
             return
 
         length = len(stars_to_check)
-        max_attempts = max(1, int(length / 2))
+        sample_factor = 4
+        max_attempts = max(1, int(length / sample_factor))
         attempts = 0
-        threshold = align_distance_sq / 2
+        threshold = self.align_distance_sq
 
         while attempts < max_attempts and stars_to_check:
             other_star = random.choice(list(stars_to_check))
@@ -153,6 +161,11 @@ class BoundingStar:
             dx = other_star.pos_x - star.pos_x
             dy = other_star.pos_y - star.pos_y
             distance_sq = dx * dx + dy * dy
+
+            dot = star.dx * dx + star.dy * dy
+            if not dot > self.fov_threshold:
+                stars_to_check.remove(other_star)
+                continue
 
             genetically_compatible = (star.gene_preference == other_star.gene_preference)
             attempts += 1
@@ -165,9 +178,9 @@ class BoundingStar:
                     continue
 
                 saw_any_stars = True
-                if distance_sq < repel_distance_sq:
+                if distance_sq < self.repel_distance_sq:
                     adjust_vector_farther(star, other_star, self.adjust_rate)
-                elif distance_sq < align_distance_sq:
+                elif distance_sq < self.align_distance_sq:
                     adjust_vector_closer(star, other_star, self.adjust_rate)
             else:
                 saw_enemy_stars = True
@@ -576,3 +589,16 @@ class BoundingStar:
         self.total_reds = sum(1 for star in self.stars if star.gene_preference == "r")
         self.total_greens = sum(1 for star in self.stars if star.gene_preference == "g")
         self.total_blues = sum(1 for star in self.stars if star.gene_preference == "b")
+
+    def plot_benchmark(self):
+        import matplotlib.pyplot as plt
+
+        stars, interactions = zip(*self.benchmark_data)
+
+        plt.figure(figsize=(10, 6))
+        plt.scatter(stars, interactions, alpha=0.5)
+        plt.xlabel('Total Stars')
+        plt.ylabel('Total Interactions')
+        plt.title('Boid Interactions vs Population')
+        plt.grid(True)
+        plt.show()

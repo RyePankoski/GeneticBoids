@@ -30,7 +30,7 @@ def main():
         draw()
         clock.tick(FPS)
 
-    # Clean up
+    bounding_star.plot_benchmark()
     pygame.quit()
     sys.exit()
 
