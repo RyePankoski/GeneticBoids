@@ -1,4 +1,4 @@
-This is my genetic boids project. Its boids with genes mixed in. All boids are created with a random lifespan, and when they die, 2 new boids are created. They inheret their parents genes in the form of the exact rgv values that the parent had.
+This is my genetic boids project. Its boids with genes mixed in. All boids are created with a random lifespan, and when they die, 2 new boids are created. They inheret their parents genes in the form of the exact rgb values that the parent had.
 Then some random genetic drift is applied to the color, with a bias towards the color they already are in, in the form of a genetic marker. If their color drifts too far, their genetic marker changes. Boids only flock with boids of the same
 genetic marker. They get bigger as they age, and they die if the get separated from the flock. It creates some very beautiful boids
 
